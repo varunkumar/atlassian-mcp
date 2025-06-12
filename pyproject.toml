@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "atlassian-mcp"
+version = "0.1.0"
+description = "Read-only MCP server for Atlassian products (Confluence and Jira)"
+authors = [
+    {name = "Varun Kumar"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+keywords = ["atlassian", "confluence", "jira", "mcp", "model-context-protocol"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "mcp>=1.0.0",
+    "httpx>=0.25.0",
+    "pydantic>=2.0.0",
+]
+requires-python = ">=3.8"
+
+[project.urls]
+Homepage = "https://github.com/varunkumar/atlassian-mcp"
+Repository = "https://github.com/varunkumar/atlassian-mcp.git"
+Documentation = "https://github.com/varunkumar/atlassian-mcp#readme"
+Issues = "https://github.com/varunkumar/atlassian-mcp/issues"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+]
+
+[project.scripts]
+atlassian-mcp = "atlassian_mcp.__main__:main"

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "atlassian": {
+      "command": "python",
+      "args": ["-m", "atlassian_mcp.server"],
+      "env": {
+        "ATLASSIAN_DOMAIN": "your-domain.atlassian.net",
+        "ATLASSIAN_EMAIL": "your-email@domain.com",
+        "ATLASSIAN_API_TOKEN": "your-api-token"
+      }
+    }
+  }
+}
