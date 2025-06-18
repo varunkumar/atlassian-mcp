@@ -7,10 +7,9 @@ from typing import Any, Sequence
 from urllib.parse import urlparse
 
 from mcp.server import Server
-from mcp.server.models import InitializationOptions
+from mcp.server.models import InitializationOptions, ServerCapabilities
 from mcp.server.stdio import stdio_server
-from mcp.types import (EmbeddedResource, ImageContent, LoggingLevel, Resource,
-                       TextContent, Tool)
+from mcp.types import Resource, TextContent, Tool
 
 from .client import AtlassianClient, AtlassianConfig
 
@@ -270,7 +269,12 @@ async def main():
             write_stream,
             InitializationOptions(
                 server_name="atlassian-mcp",
-                server_version="0.1.0"
+                server_version="0.1.0",
+                capabilities=ServerCapabilities(
+                    resources={},
+                    tools={},
+                    prompts={}
+                )
             )
         )
 

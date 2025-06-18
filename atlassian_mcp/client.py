@@ -14,22 +14,41 @@ class AtlassianConfig(BaseModel):
     """Configuration for Atlassian API access."""
     domain: str
     email: str
-    api_token: str
+    confluence_token: Optional[str] = None
+    jira_token: Optional[str] = None
 
     @classmethod
     def from_env(cls) -> "AtlassianConfig":
         """Create configuration from environment variables."""
         domain = os.getenv("ATLASSIAN_DOMAIN")
         email = os.getenv("ATLASSIAN_EMAIL")
-        api_token = os.getenv("ATLASSIAN_API_TOKEN")
+        confluence_token = os.getenv("ATLASSIAN_CONFLUENCE_TOKEN")
+        jira_token = os.getenv("ATLASSIAN_JIRA_TOKEN")
 
-        if not all([domain, email, api_token]):
+        # Backward compatibility: if old single token is provided
+        legacy_token = os.getenv("ATLASSIAN_API_TOKEN")
+        if legacy_token and not confluence_token and not jira_token:
+            confluence_token = legacy_token
+            jira_token = legacy_token
+
+        if not all([domain, email]):
             raise ValueError(
                 "Missing required environment variables: "
-                "ATLASSIAN_DOMAIN, ATLASSIAN_EMAIL, ATLASSIAN_API_TOKEN"
+                "ATLASSIAN_DOMAIN, ATLASSIAN_EMAIL"
             )
 
-        return cls(domain=domain, email=email, api_token=api_token)
+        if not confluence_token and not jira_token:
+            raise ValueError(
+                "At least one API token is required: "
+                "ATLASSIAN_CONFLUENCE_TOKEN or ATLASSIAN_JIRA_TOKEN"
+            )
+
+        return cls(
+            domain=domain,
+            email=email,
+            confluence_token=confluence_token,
+            jira_token=jira_token
+        )
 
 
 class AtlassianClient:
@@ -39,22 +58,40 @@ class AtlassianClient:
         self.config = config
         self.base_url = f"https://{config.domain}"
 
-        # Create basic auth header
-        auth_string = f"{config.email}:{config.api_token}"
-        auth_bytes = auth_string.encode('ascii')
-        auth_b64 = base64.b64encode(auth_bytes).decode('ascii')
+        # Create separate clients for Confluence and Jira if tokens are available
+        self.confluence_client = None
+        self.jira_client = None
 
-        self.headers = {
-            "Authorization": f"Basic {auth_b64}",
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        }
+        if config.confluence_token:
+            confluence_auth = f"{config.email}:{config.confluence_token}"
+            confluence_auth_b64 = base64.b64encode(
+                confluence_auth.encode('ascii')).decode('ascii')
+            confluence_headers = {
+                "Authorization": f"Basic {confluence_auth_b64}",
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            }
+            self.confluence_client = httpx.AsyncClient(
+                headers=confluence_headers, timeout=30.0)
 
-        self.client = httpx.AsyncClient(headers=self.headers, timeout=30.0)
+        if config.jira_token:
+            jira_auth = f"{config.email}:{config.jira_token}"
+            jira_auth_b64 = base64.b64encode(
+                jira_auth.encode('ascii')).decode('ascii')
+            jira_headers = {
+                "Authorization": f"Basic {jira_auth_b64}",
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            }
+            self.jira_client = httpx.AsyncClient(
+                headers=jira_headers, timeout=30.0)
 
     async def close(self):
-        """Close the HTTP client."""
-        await self.client.aclose()
+        """Close the HTTP clients."""
+        if self.confluence_client:
+            await self.confluence_client.aclose()
+        if self.jira_client:
+            await self.jira_client.aclose()
 
     # URL parsing utilities
     def parse_confluence_url(self, url: str) -> Optional[str]:
@@ -124,17 +161,25 @@ class AtlassianClient:
     # Confluence methods
     async def confluence_get_page(self, page_id: str) -> Dict[str, Any]:
         """Get a Confluence page by ID."""
+        if not self.confluence_client:
+            raise ValueError(
+                "Confluence token not configured. Please set ATLASSIAN_CONFLUENCE_TOKEN.")
+
         url = f"{self.base_url}/wiki/rest/api/content/{page_id}"
         params = {
             "expand": "body.storage,space,version,ancestors"
         }
 
-        response = await self.client.get(url, params=params)
+        response = await self.confluence_client.get(url, params=params)
         response.raise_for_status()
         return response.json()
 
     async def confluence_search_pages(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Search for Confluence pages."""
+        if not self.confluence_client:
+            raise ValueError(
+                "Confluence token not configured. Please set ATLASSIAN_CONFLUENCE_TOKEN.")
+
         url = f"{self.base_url}/wiki/rest/api/content/search"
         params = {
             "cql": f"text ~ \"{query}\" and type = page",
@@ -142,20 +187,24 @@ class AtlassianClient:
             "expand": "space,version"
         }
 
-        response = await self.client.get(url, params=params)
+        response = await self.confluence_client.get(url, params=params)
         response.raise_for_status()
         data = response.json()
         return data.get("results", [])
 
     async def confluence_list_spaces(self, limit: int = 50) -> List[Dict[str, Any]]:
         """List Confluence spaces."""
+        if not self.confluence_client:
+            raise ValueError(
+                "Confluence token not configured. Please set ATLASSIAN_CONFLUENCE_TOKEN.")
+
         url = f"{self.base_url}/wiki/rest/api/space"
         params = {
             "limit": limit,
             "expand": "description,homepage"
         }
 
-        response = await self.client.get(url, params=params)
+        response = await self.confluence_client.get(url, params=params)
         response.raise_for_status()
         data = response.json()
         return data.get("results", [])
@@ -170,17 +219,25 @@ class AtlassianClient:
     # Jira methods
     async def jira_get_issue(self, issue_key: str) -> Dict[str, Any]:
         """Get a Jira issue by key."""
+        if not self.jira_client:
+            raise ValueError(
+                "Jira token not configured. Please set ATLASSIAN_JIRA_TOKEN.")
+
         url = f"{self.base_url}/rest/api/3/issue/{issue_key}"
         params = {
             "expand": "changelog,attachments,comments"
         }
 
-        response = await self.client.get(url, params=params)
+        response = await self.jira_client.get(url, params=params)
         response.raise_for_status()
         return response.json()
 
     async def jira_search_issues(self, jql: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Search for Jira issues using JQL."""
+        if not self.jira_client:
+            raise ValueError(
+                "Jira token not configured. Please set ATLASSIAN_JIRA_TOKEN.")
+
         url = f"{self.base_url}/rest/api/3/search"
         params = {
             "jql": jql,
@@ -188,19 +245,23 @@ class AtlassianClient:
             "expand": "changelog"
         }
 
-        response = await self.client.get(url, params=params)
+        response = await self.jira_client.get(url, params=params)
         response.raise_for_status()
         data = response.json()
         return data.get("issues", [])
 
     async def jira_list_projects(self) -> List[Dict[str, Any]]:
         """List Jira projects."""
+        if not self.jira_client:
+            raise ValueError(
+                "Jira token not configured. Please set ATLASSIAN_JIRA_TOKEN.")
+
         url = f"{self.base_url}/rest/api/3/project"
         params = {
             "expand": "description,lead,projectKeys"
         }
 
-        response = await self.client.get(url, params=params)
+        response = await self.jira_client.get(url, params=params)
         response.raise_for_status()
         return response.json()
 

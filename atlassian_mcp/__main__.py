@@ -15,9 +15,11 @@ def create_parser():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Environment Variables:
-  ATLASSIAN_DOMAIN     Your Atlassian domain (e.g., company.atlassian.net)
-  ATLASSIAN_EMAIL      Your Atlassian account email
-  ATLASSIAN_API_TOKEN  Your Atlassian API token
+  ATLASSIAN_DOMAIN              Your Atlassian domain (e.g., company.atlassian.net)
+  ATLASSIAN_EMAIL               Your Atlassian account email
+  ATLASSIAN_CONFLUENCE_TOKEN    Your Confluence API token (optional)
+  ATLASSIAN_JIRA_TOKEN         Your Jira API token (optional)
+  ATLASSIAN_API_TOKEN          Legacy: single token for both services
 
 Examples:
   atlassian-mcp                    # Start the MCP server

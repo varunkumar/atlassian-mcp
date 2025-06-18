@@ -6,7 +6,8 @@
       "env": {
         "ATLASSIAN_DOMAIN": "your-domain.atlassian.net",
         "ATLASSIAN_EMAIL": "your-email@domain.com",
-        "ATLASSIAN_API_TOKEN": "your-api-token"
+        "ATLASSIAN_CONFLUENCE_TOKEN": "your-confluence-token",
+        "ATLASSIAN_JIRA_TOKEN": "your-jira-token"
       }
     }
   }

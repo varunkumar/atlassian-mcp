@@ -15,10 +15,34 @@ Set your Atlassian credentials as environment variables:
 ```bash
 export ATLASSIAN_DOMAIN=your-company.atlassian.net
 export ATLASSIAN_EMAIL=your-email@company.com
+
+# Separate tokens for each service (recommended)
+export ATLASSIAN_CONFLUENCE_TOKEN=your-confluence-token
+export ATLASSIAN_JIRA_TOKEN=your-jira-token
+
+# OR for backward compatibility, single token (if it has access to both)
 export ATLASSIAN_API_TOKEN=your-api-token
 ```
 
-Get your API token at: https://id.atlassian.com/manage-profile/security/api-tokens
+### Creating API Tokens
+
+1. Go to: https://id.atlassian.com/manage-profile/security/api-tokens
+2. Click "Create API token"
+
+**For Confluence:**
+
+- When creating a Confluence token, select these scopes:
+  - `read:content:confluence` - View pages, blog posts, comments, attachments
+  - `read:content-details:confluence` - View content metadata and properties
+
+**For Jira:**
+
+- When creating a Jira token, you'll see different scope options. Look for:
+  - Scopes that allow **reading issues** and **projects**
+  - **Search** capabilities for JQL queries
+  - Basic **browse** permissions
+
+> **Note:** The exact scope names may vary in the Atlassian interface. Choose the minimal read-only scopes that allow viewing issues, projects, and searching. If you're unsure, you can start with broader read permissions and restrict them later.
 
 ## Usage
 
@@ -59,19 +83,38 @@ atlassian-mcp
 
 ## MCP Client Configuration
 
-For Claude Desktop, add to your configuration:
-
 ```json
 {
   "mcpServers": {
     "atlassian": {
-      "command": "atlassian-mcp",
+      "command": "python",
+      "args": ["-m", "atlassian_mcp.server"],
+      "cwd": "/path/to/your/atlassian_mcp",
       "env": {
         "ATLASSIAN_DOMAIN": "your-company.atlassian.net",
         "ATLASSIAN_EMAIL": "your-email@company.com",
-        "ATLASSIAN_API_TOKEN": "your-api-token"
+        "ATLASSIAN_CONFLUENCE_TOKEN": "your-confluence-token",
+        "ATLASSIAN_JIRA_TOKEN": "your-jira-token"
       }
     }
   }
 }
 ```
+
+### API Endpoints Used
+
+This server uses the following Atlassian REST API endpoints:
+
+**Confluence REST API:**
+
+- `GET /wiki/rest/api/content/{id}` - Get page content
+- `GET /wiki/rest/api/content/search` - Search pages using CQL
+- `GET /wiki/rest/api/space` - List spaces
+
+**Jira REST API v3:**
+
+- `GET /rest/api/3/issue/{issueIdOrKey}` - Get issue details
+- `GET /rest/api/3/search` - Search issues using JQL
+- `GET /rest/api/3/project` - List projects
+
+All endpoints are read-only and require basic authentication with your email and API token.
